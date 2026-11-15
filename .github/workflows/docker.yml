@@ -1,0 +1,39 @@
+name: Docker
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  hadolint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: backend/Dockerfile
+          failure-threshold: error
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: frontend/Dockerfile
+          failure-threshold: error
+
+  build-and-scan:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: backend
+            context: backend
+          - name: frontend
+            context: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t tripforge-${{ matrix.name }}:ci ${{ matrix.context }}
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: tripforge-${{ matrix.name }}:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
